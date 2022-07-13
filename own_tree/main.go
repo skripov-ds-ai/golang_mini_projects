@@ -5,7 +5,6 @@ import (
 	"io"
 	"os"
 	"sort"
-	"strings"
 )
 
 type OSEntries []os.DirEntry
@@ -70,10 +69,10 @@ type PrintInfo struct {
 	FullPath string
 	IsDir    bool
 	Size     int64
+	Name     string
 }
 
-func GetFinalStringForNode(node PrintInfo) (res string, err error) {
-	s := strings.Split(node.FullPath, osSeparator)
+func GetFinalStringForNode(node PrintInfo) (res string) {
 	last := ""
 	branch := ordinaryBranch
 	if node.IsLast {
@@ -86,14 +85,13 @@ func GetFinalStringForNode(node PrintInfo) (res string, err error) {
 			last = " (empty)"
 		}
 	}
-	return node.Pre + branch + s[len(s)-1] + last + newString, nil
+	return node.Pre + branch + node.Name + last + newString
 }
 
-func PrintNode(out io.Writer, node PrintInfo) (err error) {
-	finalString, err := GetFinalStringForNode(node)
+func PrintNode(out io.Writer, node PrintInfo) {
+	finalString := GetFinalStringForNode(node)
 	var bs = []byte(finalString)
 	out.Write(bs)
-	return err
 }
 
 func dirTree(out io.Writer, path string, printFiles bool) (err error) {
@@ -134,11 +132,13 @@ func dirTree(out io.Writer, path string, printFiles bool) (err error) {
 			sort.Sort(entries)
 
 			for i, entry := range entries {
+				name := entry.Name()
 				tmp := PrintInfo{
 					IsLast:   i == 0,
-					FullPath: node.FullPath + osSeparator + entry.Name(),
+					FullPath: node.FullPath + osSeparator + name,
 					IsDir:    entry.IsDir(),
 					Pre:      node.Pre,
+					Name:     name,
 				}
 				var info os.FileInfo
 				info, err = entry.Info()
@@ -158,10 +158,7 @@ func dirTree(out io.Writer, path string, printFiles bool) (err error) {
 		}
 
 		if !isFirstNode {
-			err = PrintNode(out, node)
-			if err != nil {
-				return
-			}
+			PrintNode(out, node)
 		} else {
 			isFirstNode = false
 		}
