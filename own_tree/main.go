@@ -116,7 +116,7 @@ func PrintNode(out io.Writer, node PrintInfo) (err error) {
 }
 
 func dirTree(out io.Writer, path string, printFiles bool) (err error) {
-	var queue []PrintInfo
+	var stack []PrintInfo
 	var isDir bool
 
 	isDir, err = GetInitPathInfo(path)
@@ -125,21 +125,16 @@ func dirTree(out io.Writer, path string, printFiles bool) (err error) {
 		FullPath: path,
 		IsDir:    isDir,
 	}
-	queue = append(queue, startNode)
+	stack = append(stack, startNode)
+	isFirstNode := true
 
-	for len(queue) > 0 {
+	for len(stack) > 0 {
 		var entries OSEntries
 		var node PrintInfo
 		var infos []PrintInfo
-		idx := len(queue) - 1
-		node, queue = queue[idx], queue[:idx]
-		isFirstNode := node.FullPath == startNode.FullPath
-		if !isFirstNode {
-			err = PrintNode(out, node)
-			if err != nil {
-				return
-			}
-		}
+
+		idx := len(stack) - 1
+		node, stack = stack[idx], stack[:idx]
 		if node.IsDir {
 			entries, err = GetOSEntries(node.FullPath)
 			if err != nil {
@@ -164,7 +159,15 @@ func dirTree(out io.Writer, path string, printFiles bool) (err error) {
 				}
 				infos = append(infos, tmp)
 			}
-			queue = append(queue, infos...)
+			stack = append(stack, infos...)
+		}
+		if !isFirstNode {
+			err = PrintNode(out, node)
+			if err != nil {
+				return
+			}
+		} else {
+			isFirstNode = false
 		}
 	}
 	return
