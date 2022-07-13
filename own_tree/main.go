@@ -55,26 +55,6 @@ func GetOSEntries(path string) (entries OSEntries, err error) {
 	return
 }
 
-func GetFileSizeString(path string) (res string, err error) {
-	var f *os.File
-	f, err = os.Open(path)
-	defer f.Close()
-	if err != nil {
-		return
-	}
-	var stat os.FileInfo
-	stat, err = f.Stat()
-	if err != nil {
-		return
-	}
-	size := stat.Size()
-	if size == 0 {
-		return " (empty)", nil
-	}
-	res = fmt.Sprintf(" (%db)", size)
-	return
-}
-
 const (
 	ordinaryBranch = "├───"
 	lastBranch     = "└───"
@@ -85,11 +65,11 @@ const (
 )
 
 type PrintInfo struct {
-	Pre            string
-	IsLast         bool
-	FullPath       string
-	IsDir          bool
-	VerticalNumber int
+	Pre      string
+	IsLast   bool
+	FullPath string
+	IsDir    bool
+	Size     int64
 }
 
 func GetFinalStringForNode(node PrintInfo) (res string, err error) {
@@ -100,9 +80,10 @@ func GetFinalStringForNode(node PrintInfo) (res string, err error) {
 		branch = lastBranch
 	}
 	if !node.IsDir {
-		last, err = GetFileSizeString(node.FullPath)
-		if err != nil {
-			return
+		if size := node.Size; size != 0 {
+			last = fmt.Sprintf(" (%db)", size)
+		} else {
+			last = " (empty)"
 		}
 	}
 	return node.Pre + branch + s[len(s)-1] + last + newString, nil
@@ -159,6 +140,13 @@ func dirTree(out io.Writer, path string, printFiles bool) (err error) {
 					IsDir:    entry.IsDir(),
 					Pre:      node.Pre,
 				}
+				var info os.FileInfo
+				info, err = entry.Info()
+				if err != nil {
+					return
+				}
+				tmp.Size = info.Size()
+
 				if !isFirstNode {
 					if !node.IsLast {
 						tmp.Pre += vertical
