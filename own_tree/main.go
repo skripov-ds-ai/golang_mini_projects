@@ -120,7 +120,11 @@ func dirTree(out io.Writer, path string, printFiles bool) (err error) {
 	var isDir bool
 
 	isDir, err = GetInitPathInfo(path)
-	var startNode = PrintInfo{
+	if err != nil {
+		return
+	}
+
+	startNode := PrintInfo{
 		IsLast:   false,
 		FullPath: path,
 		IsDir:    isDir,
@@ -136,7 +140,6 @@ func dirTree(out io.Writer, path string, printFiles bool) (err error) {
 
 		if node.IsDir {
 			var entries OSEntries
-			var infos []PrintInfo
 
 			entries, err = GetOSEntries(node.FullPath)
 			if err != nil {
@@ -162,10 +165,8 @@ func dirTree(out io.Writer, path string, printFiles bool) (err error) {
 					}
 					tmp.Pre += tabSeparator
 				}
-				infos = append(infos, tmp)
+				stack = append(stack, tmp)
 			}
-
-			stack = append(stack, infos...)
 		}
 
 		if !isFirstNode {
