@@ -157,11 +157,11 @@ func dirTree(out io.Writer, path string, printFiles bool) (err error) {
 			}
 		}
 
-		if !isFirstNode {
-			PrintNode(out, node)
-		} else {
+		if isFirstNode {
 			isFirstNode = false
+			continue
 		}
+		PrintNode(out, node)
 	}
 	return
 }
