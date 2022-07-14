@@ -95,7 +95,7 @@ func PrintNode(out io.Writer, node PrintInfo) {
 func dirTree(out io.Writer, path string, printFiles bool) (err error) {
 	isDir, err := GetInitPathInfo(path)
 	if err != nil {
-		return err
+		return
 	}
 
 	var stack []PrintInfo
