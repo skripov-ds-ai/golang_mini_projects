@@ -94,15 +94,13 @@ func PrintNode(out io.Writer, node PrintInfo) {
 	out.Write(bs)
 }
 
-func dirTree(out io.Writer, path string, printFiles bool) (err error) {
-	var stack []PrintInfo
-	var isDir bool
-
-	isDir, err = GetInitPathInfo(path)
+func dirTree(out io.Writer, path string, printFiles bool) error {
+	isDir, err := GetInitPathInfo(path)
 	if err != nil {
-		return
+		return err
 	}
 
+	var stack []PrintInfo
 	startNode := PrintInfo{
 		IsLast:   false,
 		FullPath: path,
@@ -160,7 +158,7 @@ func dirTree(out io.Writer, path string, printFiles bool) (err error) {
 		}
 		PrintNode(out, node)
 	}
-	return
+	return nil
 }
 
 func main() {
