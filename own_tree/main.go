@@ -116,7 +116,7 @@ func dirTree(out io.Writer, path string, printFiles bool) (err error) {
 		if node.IsDir {
 			entries, err := GetOSEntries(node.FullPath)
 			if err != nil {
-				return
+				return err
 			}
 
 			if !printFiles {
@@ -136,7 +136,7 @@ func dirTree(out io.Writer, path string, printFiles bool) (err error) {
 				}
 				info, err := entry.Info()
 				if err != nil {
-					return
+					return err
 				}
 				tmp.Size = info.Size()
 
