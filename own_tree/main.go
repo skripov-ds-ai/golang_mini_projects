@@ -31,8 +31,7 @@ func FilterOSEntries(oldEntries OSEntries) (entries OSEntries) {
 }
 
 func GetInitPathInfo(path string) (isDir bool, err error) {
-	var f *os.File
-	f, err = os.Open(path)
+	f, err := os.Open(path)
 	defer f.Close()
 	if err != nil {
 		return
@@ -44,8 +43,7 @@ func GetInitPathInfo(path string) (isDir bool, err error) {
 }
 
 func GetOSEntries(path string) (entries OSEntries, err error) {
-	var f *os.File
-	f, err = os.Open(path)
+	f, err := os.Open(path)
 	defer f.Close()
 	if err != nil {
 		return
@@ -94,7 +92,7 @@ func PrintNode(out io.Writer, node PrintInfo) {
 	out.Write(bs)
 }
 
-func dirTree(out io.Writer, path string, printFiles bool) error {
+func dirTree(out io.Writer, path string, printFiles bool) (err error) {
 	isDir, err := GetInitPathInfo(path)
 	if err != nil {
 		return err
@@ -118,7 +116,7 @@ func dirTree(out io.Writer, path string, printFiles bool) error {
 		if node.IsDir {
 			entries, err := GetOSEntries(node.FullPath)
 			if err != nil {
-				return err
+				return
 			}
 
 			if !printFiles {
@@ -138,7 +136,7 @@ func dirTree(out io.Writer, path string, printFiles bool) error {
 				}
 				info, err := entry.Info()
 				if err != nil {
-					return err
+					return
 				}
 				tmp.Size = info.Size()
 
@@ -158,7 +156,7 @@ func dirTree(out io.Writer, path string, printFiles bool) error {
 		}
 		PrintNode(out, node)
 	}
-	return nil
+	return
 }
 
 func main() {
