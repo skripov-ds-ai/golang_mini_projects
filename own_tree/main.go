@@ -118,11 +118,9 @@ func dirTree(out io.Writer, path string, printFiles bool) (err error) {
 		node, stack = stack[idx], stack[:idx]
 
 		if node.IsDir {
-			var entries OSEntries
-
-			entries, err = GetOSEntries(node.FullPath)
+			entries, err := GetOSEntries(node.FullPath)
 			if err != nil {
-				return
+				return err
 			}
 
 			if !printFiles {
@@ -140,10 +138,9 @@ func dirTree(out io.Writer, path string, printFiles bool) (err error) {
 					Pre:      node.Pre,
 					Name:     name,
 				}
-				var info os.FileInfo
-				info, err = entry.Info()
+				info, err := entry.Info()
 				if err != nil {
-					return
+					return err
 				}
 				tmp.Size = info.Size()
 
