@@ -11,9 +11,15 @@ func isMonotonic(a []int) (ok bool) {
 	for i := 2; i < len(a); i++ {
 		if isGte && a[i-1] < a[i] {
 			isGte = false
+			if isLte {
+				break
+			}
 		}
 		if isLte && a[i-1] > a[i] {
 			isLte = false
+			if isGte {
+				break
+			}
 		}
 	}
 	return isLte || isGte
