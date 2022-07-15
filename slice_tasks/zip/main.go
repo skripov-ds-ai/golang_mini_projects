@@ -25,13 +25,13 @@ func zip(a, b []int) chan [2]int {
 	c := make(chan [2]int)
 
 	go func() {
+		defer close(c)
 		for i := 0; i < minSize; i++ {
 			var x [2]int
 			x[0] = a[i]
 			x[1] = b[i]
 			c <- x
 		}
-		close(c)
 	}()
 
 	return c
@@ -56,6 +56,7 @@ func moreZip(slices ...[]int) chan []int {
 	slicesNum := len(slices)
 
 	go func() {
+		defer close(c)
 		for i := 0; i < minSize; i++ {
 			x := make([]int, slicesNum)
 			for j := 0; j < slicesNum; j++ {
@@ -63,7 +64,6 @@ func moreZip(slices ...[]int) chan []int {
 			}
 			c <- x
 		}
-		close(c)
 	}()
 
 	return c
