@@ -308,7 +308,6 @@ func createUnpacker(out io.Writer, currStruct *ast.StructType, structName string
 			fmt.Printf("Generating deserialization and validation for field %s with tag %s\n", name, tag)
 
 			buff.WriteString(createUnpackFieldsBlock(name, ttype, tag))
-			//buff.WriteRune('\n')
 		}
 	}
 	unpack.Execute(out, modelDeserializer{ModelType: structName, UnpackFieldsBlock: buff.String()})
