@@ -565,7 +565,6 @@ func (d *DbExplorer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			err = d.getRecord(w, arr)
 		} else {
 			err = errorInternal
-			return
 		}
 	case r.Method == "PUT":
 		err = d.putRecord(w, r)
