@@ -46,6 +46,10 @@ type (
 	}
 )
 
+var (
+	errorInternal = errors.New("internal error")
+)
+
 func (c *Col) defaultVar() interface{} {
 	switch c.Type {
 	case "varchar", "text":
@@ -181,26 +185,26 @@ func (d *DbExplorer) selectList(table string, limit, offset int) (result []map[s
 	return d.processSelectRows(table, rows)
 }
 
-func writeUnknownTable(w http.ResponseWriter) {
+func writeUnknownTable(w http.ResponseWriter) (err error) {
 	resp := finalResponse{Error: "unknown table"}
 	bs, err := json.Marshal(resp)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
+		return errorInternal
 	}
 	w.WriteHeader(http.StatusNotFound)
 	w.Write(bs)
+	return
 }
 
-func writeRecordProblem(w http.ResponseWriter, err error) {
+func writeRecordProblem(w http.ResponseWriter, err error) (e error) {
 	resp := finalResponse{Error: err.Error()}
 	bs, err := json.Marshal(resp)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
+		return errorInternal
 	}
 	w.WriteHeader(http.StatusBadRequest)
 	w.Write(bs)
+	return
 }
 
 func (d *DbExplorer) selectById(table string, id int) (result []map[string]interface{}, err error) {
@@ -362,17 +366,17 @@ func readParam(r *http.Request, paramName string, defaultValue int) int {
 	return defaultValue
 }
 
-func (d *DbExplorer) getTables(w http.ResponseWriter) {
+func (d *DbExplorer) getTables(w http.ResponseWriter) (err error) {
 	resp := finalResponse{Response: map[string]interface{}{"tables": d.tables}}
 	writeResponse(w, resp)
+	return
 }
 
-func (d *DbExplorer) getFromTable(w http.ResponseWriter, r *http.Request, arr []string) {
+func (d *DbExplorer) getFromTable(w http.ResponseWriter, r *http.Request, arr []string) (err error) {
 	table := arr[0]
 	_, ok := d.columns[table]
 	if !ok {
-		writeUnknownTable(w)
-		return
+		return writeUnknownTable(w)
 	}
 
 	limit := readParam(r, "limit", 5)
@@ -380,44 +384,39 @@ func (d *DbExplorer) getFromTable(w http.ResponseWriter, r *http.Request, arr []
 
 	result, err := d.selectList(table, limit, offset)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
+		return errorInternal
 	}
 
 	resp := finalResponse{Response: map[string]interface{}{"records": result}}
 	writeResponse(w, resp)
+	return
 }
 
-func (d *DbExplorer) getRecord(w http.ResponseWriter, arr []string) {
-	var err error
+func (d *DbExplorer) getRecord(w http.ResponseWriter, arr []string) (e error) {
 	var resp finalResponse
 	table := arr[0]
 	idString := arr[1]
 	var id int
 
-	id, err = strconv.Atoi(idString)
+	id, err := strconv.Atoi(idString)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
+		return errorInternal
 	}
 
 	_, ok := d.columns[table]
 	if !ok {
-		writeUnknownTable(w)
-		return
+		return writeUnknownTable(w)
 	}
 
 	result, err := d.selectById(table, id)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
+		return errorInternal
 	}
 	if len(result) == 0 {
 		resp = finalResponse{Error: "record not found"}
 		bs, err := json.Marshal(resp)
 		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			return
+			return errorInternal
 		}
 		w.WriteHeader(http.StatusNotFound)
 		w.Write(bs)
@@ -426,51 +425,49 @@ func (d *DbExplorer) getRecord(w http.ResponseWriter, arr []string) {
 
 	resp = finalResponse{Response: map[string]interface{}{"record": result[0]}}
 	writeResponse(w, resp)
+	return
 }
 
-func (d *DbExplorer) putRecord(w http.ResponseWriter, r *http.Request) {
-	var err error
+func (d *DbExplorer) putRecord(w http.ResponseWriter, r *http.Request) (err error) {
 	var resp finalResponse
 	table := ""
-	if arr := extractPartsOfPath(r); len(arr) > 0 {
+	if arr := extractPartsOfPath(r); len(arr) == 1 {
 		table = arr[0]
+	} else {
+		return errorInternal
 	}
 
 	_, ok := d.columns[table]
 	if !ok {
-		writeUnknownTable(w)
-		return
+		return writeUnknownTable(w)
 	}
 
 	defer r.Body.Close()
 	bs, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
+		return errorInternal
 	}
 
 	var rawRecord map[string]interface{}
 	err = json.Unmarshal(bs, &rawRecord)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
+		return errorInternal
 	}
 	record, err := d.createRecord(table, rawRecord)
 	if err != nil {
-		writeRecordProblem(w, err)
-		return
+		return writeRecordProblem(w, err)
 	}
 	lastId, err := d.insertRecord(table, record)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
+		return errorInternal
 	}
 
 	resp = finalResponse{Response: map[string]interface{}{d.columns[table].PK: lastId}}
 	writeResponse(w, resp)
+	return
 }
 
-func (d *DbExplorer) postRecord(w http.ResponseWriter, r *http.Request) {
+func (d *DbExplorer) postRecord(w http.ResponseWriter, r *http.Request) (e error) {
 	var err error
 	var resp finalResponse
 	table := ""
@@ -481,110 +478,104 @@ func (d *DbExplorer) postRecord(w http.ResponseWriter, r *http.Request) {
 		idString = arr[1]
 		id, err = strconv.Atoi(idString)
 		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			return
+			return errorInternal
 		}
 	} else {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
+		return errorInternal
 	}
 
 	_, ok := d.columns[table]
 	if !ok {
-		writeUnknownTable(w)
-		return
+		return writeUnknownTable(w)
 	}
 
 	defer r.Body.Close()
 	bs, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
+		return errorInternal
 	}
 
 	var rawRecord map[string]interface{}
 	err = json.Unmarshal(bs, &rawRecord)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
+		return errorInternal
 	}
 	for k := range rawRecord {
 		if _, ok := d.columns[table].AutoIncrement[k]; ok {
 			err = errors.New(fmt.Sprintf("field %s have invalid type", d.columns[table].PK))
-			writeRecordProblem(w, err)
-			return
+			return writeRecordProblem(w, err)
 		}
 	}
 	record, err := d.createRecord(table, rawRecord)
 	if err != nil {
-		writeRecordProblem(w, err)
-		return
+		return writeRecordProblem(w, err)
 	}
 
 	updated, err := d.updateRecord(table, id, record)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
+		return errorInternal
 	}
 
 	resp = finalResponse{Response: map[string]interface{}{"updated": updated}}
 	writeResponse(w, resp)
+	return
 }
 
-func (d *DbExplorer) deleteRecord(w http.ResponseWriter, r *http.Request) {
-	var err error
+func (d *DbExplorer) deleteRecord(w http.ResponseWriter, r *http.Request) (err error) {
 	var resp finalResponse
 	table := ""
 	idString := ""
-	if arr := extractPartsOfPath(r); len(arr) > 0 {
+	if arr := extractPartsOfPath(r); len(arr) == 2 {
 		table = arr[0]
 		idString = arr[1]
+	} else {
+		return errorInternal
 	}
 
 	_, ok := d.columns[table]
 	if !ok {
-		writeUnknownTable(w)
-		return
+		return writeUnknownTable(w)
 	}
 
 	id, err := strconv.Atoi(idString)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
+		return errorInternal
 	}
 
 	deleted, err := d.deleteById(table, id)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
+		return errorInternal
 	}
 
 	resp = finalResponse{Response: map[string]interface{}{"deleted": deleted}}
 	writeResponse(w, resp)
+	return
 }
 
 func (d *DbExplorer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	//slashCount := strings.Count(r.URL.Path, "/")
+	var err error
 	switch {
 	case r.Method == "GET" && r.URL.Path == "/":
 		d.getTables(w)
 	case r.Method == "GET":
 		arr := extractPartsOfPath(r)
 		if len(arr) == 1 {
-			d.getFromTable(w, r, arr)
+			err = d.getFromTable(w, r, arr)
 		} else if len(arr) == 2 {
-			//case r.Method == "GET" && slashCount == 2:
-			d.getRecord(w, arr)
+			err = d.getRecord(w, arr)
 		} else {
-			w.WriteHeader(http.StatusInternalServerError)
+			err = errorInternal
 			return
 		}
 	case r.Method == "PUT":
-		d.putRecord(w, r)
+		err = d.putRecord(w, r)
 	case r.Method == "POST":
-		d.postRecord(w, r)
+		err = d.postRecord(w, r)
 	case r.Method == "DELETE":
-		d.deleteRecord(w, r)
+		err = d.deleteRecord(w, r)
+	}
+	if errors.Is(err, errorInternal) {
+		w.WriteHeader(http.StatusInternalServerError)
 	}
 }
 
