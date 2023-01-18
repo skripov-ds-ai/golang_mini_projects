@@ -82,8 +82,10 @@ func main() {
 		for done := range doneTasks {
 			fmt.Printf("Done tasks: %v\n", done)
 		}
+		close(doneTasks)
 	}()
 	for undone := range undoneTasks {
 		fmt.Printf("Errors: %s\n", undone)
 	}
+	close(undoneTasks)
 }
